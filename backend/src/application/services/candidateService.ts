@@ -3,6 +3,9 @@ import { validateCandidateData } from '../validator';
 import { Education } from '../../domain/models/Education';
 import { WorkExperience } from '../../domain/models/WorkExperience';
 import { Resume } from '../../domain/models/Resume';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const addCandidate = async (candidateData: any) => {
     try {
@@ -63,3 +66,110 @@ export const findCandidateById = async (id: number): Promise<Candidate | null> =
         throw new Error('Error al recuperar el candidato');
     }
 };
+
+interface UpdateStageResponse {
+    applicationId: number;
+    candidateId: number;
+    candidateName: string;
+    positionId: number;
+    positionTitle: string;
+    previousInterviewStep: number;
+    previousInterviewStepName: string;
+    currentInterviewStep: number;
+    currentInterviewStepName: string;
+}
+
+/**
+ * Actualiza la etapa del proceso de entrevista de un candidato
+ * @param applicationId - ID de la aplicación
+ * @param newInterviewStepId - ID del nuevo paso de entrevista
+ * @returns Información completa de la actualización
+ */
+export const updateCandidateStage = async (
+    applicationId: number,
+    newInterviewStepId: number
+): Promise<UpdateStageResponse> => {
+    try {
+        // Obtener la aplicación actual con todas sus relaciones
+        const application = await prisma.application.findUnique({
+            where: { id: applicationId },
+            include: {
+                candidate: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true
+                    }
+                },
+                position: {
+                    select: {
+                        id: true,
+                        title: true,
+                        interviewFlowId: true
+                    }
+                },
+                interviewStep: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            }
+        });
+
+        // Validar que la aplicación existe
+        if (!application) {
+            throw new Error('Application not found');
+        }
+
+        // Validar que el nuevo paso es diferente al actual
+        if (application.currentInterviewStep === newInterviewStepId) {
+            throw new Error('New interview step must be different from current step');
+        }
+
+        // Verificar que el nuevo paso de entrevista existe y pertenece al flujo correcto
+        const newInterviewStep = await prisma.interviewStep.findUnique({
+            where: { id: newInterviewStepId },
+            select: {
+                id: true,
+                name: true,
+                interviewFlowId: true
+            }
+        });
+
+        if (!newInterviewStep) {
+            throw new Error('Interview step not found');
+        }
+
+        // Validar que el nuevo paso pertenece al mismo flujo de entrevistas de la posición
+        if (newInterviewStep.interviewFlowId !== application.position.interviewFlowId) {
+            throw new Error('The interview step does not belong to the position\'s interview flow');
+        }
+
+        // Guardar información del paso anterior
+        const previousStep = application.interviewStep;
+
+        // Actualizar la aplicación con el nuevo paso
+        await prisma.application.update({
+            where: { id: applicationId },
+            data: { currentInterviewStep: newInterviewStepId }
+        });
+
+        // Retornar información completa
+        return {
+            applicationId: application.id,
+            candidateId: application.candidate.id,
+            candidateName: `${application.candidate.firstName} ${application.candidate.lastName}`,
+            positionId: application.position.id,
+            positionTitle: application.position.title,
+            previousInterviewStep: previousStep.id,
+            previousInterviewStepName: previousStep.name,
+            currentInterviewStep: newInterviewStep.id,
+            currentInterviewStepName: newInterviewStep.name
+        };
+    } catch (error) {
+        console.error('Error al actualizar etapa del candidato:', error);
+        throw error;
+    }
+};
+
