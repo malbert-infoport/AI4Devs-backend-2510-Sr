@@ -275,7 +275,7 @@ export const findCandidateById = async (id: number): Promise<Candidate | null> =
 
 1. **TypeScript estricto:** Tipar correctamente todas las funciones, parámetros y respuestas
 2. **Manejo de errores consistente:** Usar try-catch en servicios y controladores
-3. **Prisma Client:** Utilizar `req.prisma` para las consultas (disponible mediante middleware)
+3. **Prisma Client:** Los servicios deben recibir una instancia de PrismaClient como parámetro en lugar de crear nuevas instancias. Los controladores deben pasar `req.prisma` (disponible mediante middleware en index.ts) a las funciones de servicio
 4. **Código limpio:** Seguir los patrones existentes en el proyecto
 5. **Comentarios:** Agregar comentarios explicativos en lógica compleja
 6. **Validación de entrada:** Siempre validar parámetros y body antes de procesarlos

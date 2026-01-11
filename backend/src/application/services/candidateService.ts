@@ -4,8 +4,7 @@ import { Education } from '../../domain/models/Education';
 import { WorkExperience } from '../../domain/models/WorkExperience';
 import { Resume } from '../../domain/models/Resume';
 import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { NotFoundError, ValidationError } from '../errors/ApplicationErrors';
 
 export const addCandidate = async (candidateData: any) => {
     try {
@@ -83,15 +82,18 @@ interface UpdateStageResponse {
  * Actualiza la etapa del proceso de entrevista de un candidato
  * @param applicationId - ID de la aplicación
  * @param newInterviewStepId - ID del nuevo paso de entrevista
+ * @param prisma - Instancia de PrismaClient
  * @returns Información completa de la actualización
  */
 export const updateCandidateStage = async (
     applicationId: number,
-    newInterviewStepId: number
+    newInterviewStepId: number,
+    prisma: PrismaClient
 ): Promise<UpdateStageResponse> => {
-    try {
+    // Usar transacción para prevenir race conditions (TOCTOU)
+    return await prisma.$transaction(async (tx) => {
         // Obtener la aplicación actual con todas sus relaciones
-        const application = await prisma.application.findUnique({
+        const application = await tx.application.findUnique({
             where: { id: applicationId },
             include: {
                 candidate: {
@@ -119,16 +121,16 @@ export const updateCandidateStage = async (
 
         // Validar que la aplicación existe
         if (!application) {
-            throw new Error('Application not found');
+            throw new NotFoundError('Application not found');
         }
 
         // Validar que el nuevo paso es diferente al actual
         if (application.currentInterviewStep === newInterviewStepId) {
-            throw new Error('New interview step must be different from current step');
+            throw new ValidationError('New interview step must be different from current step');
         }
 
         // Verificar que el nuevo paso de entrevista existe y pertenece al flujo correcto
-        const newInterviewStep = await prisma.interviewStep.findUnique({
+        const newInterviewStep = await tx.interviewStep.findUnique({
             where: { id: newInterviewStepId },
             select: {
                 id: true,
@@ -138,19 +140,19 @@ export const updateCandidateStage = async (
         });
 
         if (!newInterviewStep) {
-            throw new Error('Interview step not found');
+            throw new NotFoundError('Interview step not found');
         }
 
         // Validar que el nuevo paso pertenece al mismo flujo de entrevistas de la posición
         if (newInterviewStep.interviewFlowId !== application.position.interviewFlowId) {
-            throw new Error('The interview step does not belong to the position\'s interview flow');
+            throw new ValidationError('The interview step does not belong to the position\'s interview flow');
         }
 
         // Guardar información del paso anterior
         const previousStep = application.interviewStep;
 
-        // Actualizar la aplicación con el nuevo paso
-        await prisma.application.update({
+        // Actualizar la aplicación con el nuevo paso (dentro de la transacción)
+        await tx.application.update({
             where: { id: applicationId },
             data: { currentInterviewStep: newInterviewStepId }
         });
@@ -167,9 +169,6 @@ export const updateCandidateStage = async (
             currentInterviewStep: newInterviewStep.id,
             currentInterviewStepName: newInterviewStep.name
         };
-    } catch (error) {
-        console.error('Error al actualizar etapa del candidato:', error);
-        throw error;
-    }
+    });
 };
 

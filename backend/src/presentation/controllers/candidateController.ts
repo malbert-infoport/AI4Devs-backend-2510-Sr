@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { addCandidate, findCandidateById, updateCandidateStage } from '../../application/services/candidateService';
+import { ApplicationError } from '../../application/errors/ApplicationErrors';
 
 export const addCandidateController = async (req: Request, res: Response) => {
     try {
@@ -46,7 +47,7 @@ export const updateCandidateStageController = async (req: Request, res: Response
         const { newInterviewStepId } = req.body;
 
         // Validar que se proporcione el campo requerido
-        if (!newInterviewStepId) {
+        if (newInterviewStepId === undefined || newInterviewStepId === null) {
             return res.status(400).json({ error: 'newInterviewStepId is required' });
         }
 
@@ -55,29 +56,20 @@ export const updateCandidateStageController = async (req: Request, res: Response
             return res.status(400).json({ error: 'newInterviewStepId must be a valid number' });
         }
 
-        const result = await updateCandidateStage(id, newInterviewStepId);
+        const result = await updateCandidateStage(id, newInterviewStepId, req.prisma);
         
         res.json({
             message: 'Interview step updated successfully',
             data: result
         });
     } catch (error) {
-        if (error instanceof Error) {
-            // Manejar errores específicos del negocio
-            if (error.message === 'Application not found') {
-                return res.status(404).json({ error: 'Application not found' });
-            }
-            if (error.message === 'Interview step not found') {
-                return res.status(404).json({ error: 'Interview step not found' });
-            }
-            if (error.message === 'New interview step must be different from current step') {
-                return res.status(400).json({ error: error.message });
-            }
-            if (error.message === 'The interview step does not belong to the position\'s interview flow') {
-                return res.status(400).json({ error: error.message });
-            }
-        }
         console.error('Error in updateCandidateStageController:', error);
+        
+        // Manejo de errores tipados
+        if (error instanceof ApplicationError) {
+            return res.status(error.statusCode).json({ error: error.message });
+        }
+        
         res.status(500).json({ error: 'Internal Server Error' });
     }
 };

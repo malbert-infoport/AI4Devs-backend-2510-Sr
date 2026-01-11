@@ -206,9 +206,14 @@ paths:
         '500':
           description: Internal server error
   /candidates/{id}/stage:
+    # NOTE: This endpoint uses /candidates/{id}/stage where {id} is actually the applicationId.
+    # For better semantic clarity, consider renaming to /applications/{id}/stage in a future version.
+    # This would be a breaking change requiring client updates.
     put:
       summary: Update candidate interview stage
-      description: Updates the current interview step for a candidate's application to a position.
+      description: |
+        Updates the current interview step for a candidate's application to a position.
+        Note: The {id} parameter represents the Application ID, not the Candidate ID.
       parameters:
         - in: path
           name: id
@@ -398,3 +403,103 @@ paths:
         '500':
           description: Error during the file upload process
 
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error
+    
+    Candidate:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier
+        firstName:
+          type: string
+          description: Candidate's first name
+        lastName:
+          type: string
+          description: Candidate's last name
+        email:
+          type: string
+          format: email
+          description: Email address
+        phone:
+          type: string
+          nullable: true
+          description: Phone number
+        address:
+          type: string
+          nullable: true
+          description: Physical address
+      required:
+        - id
+        - firstName
+        - lastName
+        - email
+    
+    InterviewStepUpdate:
+      type: object
+      properties:
+        applicationId:
+          type: integer
+          description: Application ID
+        candidateId:
+          type: integer
+          description: Candidate ID
+        candidateName:
+          type: string
+          description: Full name of the candidate
+        positionId:
+          type: integer
+          description: Position ID
+        positionTitle:
+          type: string
+          description: Position title
+        previousInterviewStep:
+          type: integer
+          description: Previous interview step ID
+        previousInterviewStepName:
+          type: string
+          description: Previous interview step name
+        currentInterviewStep:
+          type: integer
+          description: Current interview step ID
+        currentInterviewStepName:
+          type: string
+          description: Current interview step name
+      required:
+        - applicationId
+        - candidateId
+        - candidateName
+        - positionId
+        - positionTitle
+        - previousInterviewStep
+        - previousInterviewStepName
+        - currentInterviewStep
+        - currentInterviewStepName
+
+  parameters:
+    CandidateId:
+      name: id
+      in: path
+      required: true
+      description: The candidate/application ID
+      schema:
+        type: integer
+        minimum: 1
+    
+    PositionId:
+      name: id
+      in: path
+      required: true
+      description: The position ID
+      schema:
+        type: integer
+        minimum: 1

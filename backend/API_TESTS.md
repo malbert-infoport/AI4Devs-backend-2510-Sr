@@ -14,12 +14,20 @@ curl -X GET http://localhost:3010/positions/1/candidates
   "positionTitle": "Senior Backend Developer",
   "candidates": [
     {
-      "candidateId": 5,
+      "candidateId": 1,
       "fullName": "María García López",
       "email": "maria.garcia@example.com",
       "currentInterviewStep": 2,
       "currentInterviewStepName": "Technical Interview",
       "averageScore": 8.5
+    },
+    {
+      "candidateId": 2,
+      "fullName": "Juan Pérez Martínez",
+      "email": "juan.perez@example.com",
+      "currentInterviewStep": 1,
+      "currentInterviewStepName": "Phone Screening",
+      "averageScore": null
     }
   ]
 }
@@ -66,14 +74,14 @@ curl -X PUT http://localhost:3010/candidates/1/stage \
   "message": "Interview step updated successfully",
   "data": {
     "applicationId": 1,
-    "candidateId": 5,
+    "candidateId": 1,
     "candidateName": "María García López",
     "positionId": 1,
     "positionTitle": "Senior Backend Developer",
-    "previousInterviewStep": 1,
-    "previousInterviewStepName": "Phone Screening",
-    "currentInterviewStep": 2,
-    "currentInterviewStepName": "Technical Interview"
+    "previousInterviewStep": 2,
+    "previousInterviewStepName": "Technical Interview",
+    "currentInterviewStep": 3,
+    "currentInterviewStepName": "Final Interview"
   }
 }
 ```
@@ -171,12 +179,29 @@ curl -X PUT http://localhost:3010/candidates/99999/stage \
    npm run dev
    ```
 
-2. **Asegurarse de que la base de datos tiene datos de prueba:**
-   - Debe haber posiciones creadas
-   - Debe haber candidatos con aplicaciones
-   - Debe haber pasos de entrevista configurados
+2. **Crear datos de prueba:**
+   ```bash
+   cd backend
+   node create-test-data.js
+   ```
+   Este script creará:
+   - Posición ID: 1 ("Senior Backend Developer")
+   - Candidatos ID: 1 ("María García López") y 2 ("Juan Pérez Martínez")
+   - Aplicaciones ID: 1 y 2
+   - Interview Steps ID: 1, 2, 3
 
-3. **Adaptar los IDs según tu base de datos:**
+3. **Los ejemplos en este documento son ilustrativos:**
+   Los IDs mostrados en los ejemplos JSON (candidateId: 5, 8, etc.) son ilustrativos. Los IDs reales después de ejecutar `create-test-data.js` serán diferentes.
+   
+   Para obtener los IDs actuales de tu base de datos, puedes ejecutar:
+   ```bash
+   # Ver posiciones
+   npx prisma studio
+   # O consultar directamente
+   psql -d LTIdb -c "SELECT id, title FROM \"Position\";"
+   ```
+
+4. **Adaptar los IDs según tu base de datos:**
    - Los IDs usados en estos ejemplos (1, 2, 999, 99999) son ilustrativos
    - Verifica los IDs reales en tu base de datos antes de ejecutar las pruebas
 

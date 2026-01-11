@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { NotFoundError, ValidationError } from '../errors/ApplicationErrors';
 
 interface CandidateByPosition {
     candidateId: number;
@@ -20,9 +19,10 @@ interface PositionCandidatesResponse {
 /**
  * Obtiene todos los candidatos en proceso para una posición específica
  * @param positionId - ID de la posición
+ * @param prisma - Instancia de PrismaClient
  * @returns Información de la posición y lista de candidatos con sus datos
  */
-export const getCandidatesByPosition = async (positionId: number): Promise<PositionCandidatesResponse | null> => {
+export const getCandidatesByPosition = async (positionId: number, prisma: PrismaClient): Promise<PositionCandidatesResponse | null> => {
     try {
         // Primero verificar si la posición existe
         const position = await prisma.position.findUnique({
@@ -37,6 +37,7 @@ export const getCandidatesByPosition = async (positionId: number): Promise<Posit
         // Obtener todas las aplicaciones para esta posición con sus relaciones
         const applications = await prisma.application.findMany({
             where: { positionId },
+            orderBy: { id: 'asc' }, // Ordenamiento determinístico
             include: {
                 candidate: {
                     select: {
@@ -62,6 +63,11 @@ export const getCandidatesByPosition = async (positionId: number): Promise<Posit
 
         // Mapear los datos a la estructura de respuesta
         const candidates: CandidateByPosition[] = applications.map(app => {
+            // Validación defensiva para evitar crashes si interviewStep es null
+            if (!app.interviewStep) {
+                throw new ValidationError(`Application ${app.id} has invalid interviewStep reference`);
+            }
+
             // Calcular puntuación media de las entrevistas con score
             const scoresWithValues = app.interviews
                 .map(interview => interview.score)
@@ -88,6 +94,6 @@ export const getCandidatesByPosition = async (positionId: number): Promise<Posit
         };
     } catch (error) {
         console.error('Error al obtener candidatos por posición:', error);
-        throw new Error('Error al recuperar candidatos de la posición');
+        throw error; // Re-lanzar el error para que el controlador lo maneje
     }
 };
